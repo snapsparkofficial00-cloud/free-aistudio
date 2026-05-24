@@ -6,7 +6,7 @@ import subprocess
 import glob
 
 # Configuration for GitHub Releases binary
-DEFAULT_REPO = "parijha/free-aistudio"
+DEFAULT_REPO = "airesearch-official/free-aistudio"
 DEFAULT_TAG = "v1.0.0"
 BINARY_FILENAME = "sd_cpp_cuda_built.tar.gz"
 
