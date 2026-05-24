@@ -16,12 +16,8 @@ This studio is designed to be a unified, future-proof suite for running generati
   - Pre-quantized Q3 weights running under VRAM limits.
   - Native spatial latent upscaling (2.0x) pass.
   - Synced audio track generation.
-- **`[ ]` Stable Diffusion XL (SDXL) Image Generation** (Upcoming)
-  - Fast C++ inference presets for lightweight image generation.
-- **`[ ]` FLUX.1 Image Generation** (Upcoming)
-  - Quantized Flux GGUF inference setups on T4 GPUs.
-- **`[ ]` Unified Multimodal Web UI** (Upcoming)
-  - Switch between video, image, and audio-only generation modes from a single frontend room.
+- **`[ ]` More Models & Features Coming Soon!**
+  - New generative features and community-requested presets will be added as they arrive.
 
 ---
 
