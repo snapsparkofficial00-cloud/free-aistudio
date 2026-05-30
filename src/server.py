@@ -94,8 +94,21 @@ def start_server(
     
     process = subprocess.Popen(server_cmd, stdout=log_file, stderr=subprocess.STDOUT)
     
-    print("⏱️ Waiting 90 seconds for models to load into RAM/VRAM...")
-    time.sleep(90)
+    print(f"⏱️ Waiting for API server to become responsive on port {port}...")
+    start_time = time.time()
+    while time.time() - start_time < 120:
+        try:
+            import urllib.request
+            # Check if capabilities endpoint is active (indicates model is fully loaded and listening)
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/sdcpp/v1/capabilities", timeout=2) as response:
+                if response.status == 200:
+                    print("🔥 API Server is up and ready!")
+                    break
+        except Exception:
+            time.sleep(2)
+    else:
+        print("⚠️ Warning: Timeout waiting for server response. Proceeding anyway...")
+        
     print(f"API Server active checks loaded. Preset: {preset}")
     print(f"Logging active in: {log_path}")
     return process

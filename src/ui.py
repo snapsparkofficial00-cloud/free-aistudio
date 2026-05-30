@@ -311,7 +311,7 @@ def handle_image_generation(prompt, width, height, steps, seed, cfg_scale, selec
             status = status_res.get("status", "unknown")
 
             if status == "completed":
-                image_bytes = base64.b64decode(status_res["result"]["b64_json"])
+                image_bytes = base64.b64decode(status_res["result"]["images"][0]["b64_json"])
                 base_image_path = f"/kaggle/working/gen_{job_id}.png"
                 with open(base_image_path, "wb") as f:
                     f.write(image_bytes)
