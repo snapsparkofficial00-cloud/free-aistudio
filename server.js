@@ -30,7 +30,7 @@ const upload = multer({ dest: uploadsDir });
 // ============================================================
 const CONFIG = {
     openrouter: {
-        apiKey: process.env.OPENROUTER_API_KEY,
+        apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_KEY,
         baseUrl: 'https://openrouter.ai/api/v1',
         models: {
             script: process.env.OPENROUTER_SCRIPT_MODEL || 'anthropic/claude-3.5-sonnet',
