@@ -2218,5 +2218,80 @@
         });
     });
     </script>
+<script>
+// ============================================
+// CONNECT TO RENDER BACKEND
+// ============================================
+const API_BASE = 'https://ai-youtube-m6t6.onrender.com';
+
+// Override fetch to use Render backend
+const originalFetch = window.fetch;
+window.fetch = function(url, options) {
+    if (url.startsWith('/api/')) {
+        url = API_BASE + url;
+        console.log('🔄 Calling backend:', url);
+    }
+    return originalFetch(url, options);
+};
+
+// Check backend connection on load
+async function checkBackendConnection() {
+    try {
+        const res = await originalFetch(API_BASE + '/api/status');
+        const data = await res.json();
+        
+        // Update API status indicators
+        if (data.openrouter) {
+            document.getElementById('status-openrouter').className = 'w-2 h-2 rounded-full api-status-online';
+        }
+        if (data.elevenlabs) {
+            document.getElementById('status-elevenlabs').className = 'w-2 h-2 rounded-full api-status-online';
+        }
+        console.log('✅ Backend connected!');
+    } catch(e) {
+        console.log('⚠️ Backend not reachable');
+    }
+}
+
+// Run on page load
+checkBackendConnection();
+
+// Update generate button to actually call backend
+function generateVideoPipeline() {
+    const topic = document.getElementById('videoTopic').value;
+    if (!topic) {
+        alert('Please enter a topic!');
+        return;
+    }
+    
+    const params = {
+        topic: topic,
+        type: document.getElementById('videoType')?.value || 'short',
+        language: document.getElementById('videoLang')?.value || 'hindi',
+        niche: document.getElementById('videoNiche')?.value || 'self-improvement',
+        quality: document.getElementById('videoQuality')?.value || '4k'
+    };
+    
+    console.log('🎬 Generating video:', params);
+    
+    fetch(API_BASE + '/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('✅ Generated:', data);
+        alert('Pipeline started! Check console for details.');
+    })
+    .catch(err => {
+        console.error('❌ Error:', err);
+        alert('Backend not connected. Make sure Render is running.');
+    });
+}
+
+console.log('🚀 NeuroTube Frontend Ready');
+console.log('🔗 Backend:', API_BASE);
+</script>
 </body>
 </html>
