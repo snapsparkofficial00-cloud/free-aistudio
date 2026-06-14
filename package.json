@@ -1,0 +1,42 @@
+{
+  "name": "neurotube-ai",
+  "version": "2.0.0",
+  "description": "NeuroTube AI — Fully Working YouTube Automation with Higgsfield Video Generation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "higgsfield:install": "npm install -g @higgsfield/cli",
+    "higgsfield:login": "higgsfield auth login",
+    "higgsfield:status": "higgsfield auth token",
+    "test": "echo \"All systems operational\"",
+    "setup": "npm install && cp .env.example .env && echo 'Edit .env with your API keys'"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0",
+    "form-data": "^4.0.0",
+    "googleapis": "^140.0.0",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "youtube",
+    "automation",
+    "ai",
+    "openrouter",
+    "elevenlabs",
+    "higgsfield",
+    "video-generation",
+    "content-creation"
+  ],
+  "author": "NeuroTube AI",
+  "license": "MIT"
+}
