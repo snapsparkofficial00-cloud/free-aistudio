@@ -39,6 +39,42 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 const upload = multer({ dest: uploadsDir });
 
 // ============================================================
+// API STATUS & TEST ROUTES
+// ============================================================
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'online',
+        openrouter: !!CONFIG.openrouter.apiKey,
+        elevenlabs: !!CONFIG.elevenlabs.apiKey,
+        youtube: !!CONFIG.youtube.refreshToken,
+        higgsfield: !!CONFIG.higgsfield.apiKey,
+        version: DB.system.version || '2.0.0',
+        agents: 12,
+        uptime: process.uptime(),
+        self_learning: true
+    });
+});
+
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        message: 'NeuroTube API is working!', 
+        time: new Date().toISOString(),
+        version: '2.0.0'
+    });
+});
+
+app.get('/api/agents/list', (req, res) => {
+    res.json({
+        agents: [
+            'ScriptMaster', 'VisualForge', 'VoiceSynth', 'AudioWeaver',
+            'CinemaAI 4K', 'TrendOracle', 'CompetitorSpy', 'GrowthEngine',
+            'CinemaForge', 'VisualSynth', 'ViralPredictor', 'ShortsForge'
+        ],
+        total: 12
+    });
+});
+
+// ============================================================
 // CONFIGURATION - Load from .env
 // ============================================================
 const CONFIG = {
