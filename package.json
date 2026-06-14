@@ -9,7 +9,7 @@
     "higgsfield:install": "npm install -g @higgsfield/cli",
     "higgsfield:login": "higgsfield auth login",
     "higgsfield:status": "higgsfield auth token",
-    "test": "node -e "console.log('All systems operational')"",
+    "test": "echo \"All systems operational\"",
     "setup": "npm install && cp .env.example .env && echo 'Edit .env with your API keys'"
   },
   "dependencies": {
