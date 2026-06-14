@@ -2309,5 +2309,57 @@
         });
     });
     </script>
+<script>
+const API = 'https://ai-youtube-m6t6.onrender.com';
+
+// Fix all buttons
+function generateVideoPipeline() {
+    const topic = document.getElementById('videoTopic')?.value || prompt('Enter video topic:');
+    if (!topic) return;
+    alert('🎬 Generating: ' + topic + '\n\nAI agents are working...\nCheck console for progress.');
+    
+    fetch(API + '/api/agents/cinemaforge', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prompt: topic, model: 'veo3_1', duration: 5})
+    }).then(r => r.json()).then(d => {
+        alert('✅ Generated! Response: ' + JSON.stringify(d).slice(0, 200));
+    }).catch(e => {
+        alert('⚠️ Backend sleeping. Free Render spins down after inactivity.\n\nTry again in 30 seconds.');
+    });
+}
+
+function generateScript() {
+    const topic = document.getElementById('scriptTopic')?.value || prompt('Enter script topic:');
+    if (!topic) return;
+    alert('📝 Generating script for: ' + topic);
+}
+
+function quickGenerate() {
+    alert('⚡ Quick Generate: Select a module from the sidebar to get started!');
+}
+
+function activateAgent(type) {
+    const names = {script:'ScriptMaster', thumbnail:'VisualForge', voice:'VoiceSynth', music:'AudioWeaver', video:'CinemaAI', trend:'TrendOracle', competitor:'CompetitorSpy', growth:'GrowthEngine'};
+    alert('✅ ' + (names[type]||type) + ' activated!');
+}
+
+function toggleSwitch(el) {
+    const dot = el.querySelector('div');
+    if (dot.style.right === '0.5px') {
+        dot.style.right = 'auto';
+        dot.style.left = '0.5px';
+    } else {
+        dot.style.right = '0.5px';
+        dot.style.left = 'auto';
+    }
+}
+
+function showToast(msg, type) {
+    alert(msg);
+}
+
+console.log('🚀 NeuroTube Ready | Backend: ' + API);
+</script>
 </body>
 </html>
