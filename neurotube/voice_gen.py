@@ -25,7 +25,7 @@ def text_to_speech(text: str, out_path: str, lang: str = 'hi') -> str:
             cmd = [
                 'edge-tts',
                 '--voice', 'hi-IN-MadhurNeural',
-                '--text-file', tmp_text,
+                '--file', tmp_text,
                 '--write-media', out_path
             ]
             import subprocess
