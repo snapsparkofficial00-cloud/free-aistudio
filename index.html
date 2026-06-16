@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroTube AI v3.0 - Free YouTube Automation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{font-family:'Inter',sans-serif;}body{background:#0a0a0f;color:#e0e0e0;}
+.glass-panel{background:rgba(20,20,30,0.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);}
+.nav-btn{transition:all 0.3s ease;}
+.nav-btn:hover{background:rgba(0,243,255,0.1);}
+.nav-btn.tab-active{background:linear-gradient(135deg,rgba(0,243,255,0.15),rgba(188,19,254,0.15));border-left:3px solid #00f3ff;}
+.btn-primary{background:linear-gradient(135deg,#00f3ff,#bc13fe);transition:all 0.3s ease;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,243,255,0.3);}
+.step-active{border-color:#00f3ff!important;background:rgba(0,243,255,0.05)!important;}
+.step-complete{border-color:#22c55e!important;background:rgba(34,197,94,0.05)!important;}
+.step-error{border-color:#ef4444!important;background:rgba(239,68,68,0.05)!important;}
+.api-status-online{background:#22c55e;box-shadow:0 0 8px #22c55e;}
+.api-status-offline{background:#ef4444;}
+.api-status-connecting{background:#f59e0b;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+.hidden{display:none!important;}
+.notification-toast{animation:slideIn 0.3s ease;backdrop-filter:blur(10px);}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:#0a0a0f;}
+::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:#555;}
+</style>
+</head>
+<body class="min-h-screen">
+<div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-64 glass-panel z-40 transform transition-transform duration-300 lg:translate-x-0 -translate-x-full">
+<div class="p-6">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+<i class="fas fa-brain text-white text-lg"></i>
+</div>
+<div><h1 class="font-bold text-white text-lg">NeuroTube</h1><p class="text-xs text-gray-500">AI v3.0 - All Free</p></div>
+</div>
+
+<nav class="space-y-1">
+<button onclick="switchTab('dashboard')" data-tab="dashboard" class="nav-btn tab-active w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-white">
+<i class="fas fa-home w-5"></i> Dashboard
+</button>
+<button onclick="switchTab('create')" data-tab="create" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-video w-5"></i> Create Video
+</button>
+<button onclick="switchTab('scripts')" data-tab="scripts" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-file-alt w-5"></i> Script AI
+</button>
+<button onclick="switchTab('images')" data-tab="images" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-image w-5"></i> Image Generator
+</button>
+<button onclick="switchTab('voice')" data-tab="voice" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-microphone w-5"></i> Voice Generator
+</button>
+<button onclick="switchTab('ai-video')" data-tab="ai-video" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-robot w-5"></i> AI Video
+</button>
+<button onclick="switchTab('analytics')" data-tab="analytics" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-chart-line w-5"></i> Analytics
+</button>
+<button onclick="switchTab('library')" data-tab="library" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-folder w-5"></i> My Library
+</button>
+<button onclick="switchTab('settings')" data-tab="settings" class="nav-btn w-full text-left px-4 py-3 rounded-xl text-sm flex items-center gap-3 text-gray-400 hover:text-white">
+<i class="fas fa-cog w-5"></i> Settings
+</button>
+</nav>
+
+<div class="mt-8 p-4 rounded-xl bg-white/5 border border-white/5">
+<h3 class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">API Status</h3>
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2"><div id="status-openrouter" class="w-2 h-2 rounded-full api-status-connecting"></div><span class="text-xs text-gray-400">OpenRouter</span></div>
+<span id="status-text-openrouter" class="text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400">Checking...</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2"><div id="status-gemini" class="w-2 h-2 rounded-full api-status-connecting"></div><span class="text-xs text-gray-400">Gemini</span></div>
+<span id="status-text-gemini" class="text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400">Checking...</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2"><div id="status-edgetts" class="w-2 h-2 rounded-full api-status-connecting"></div><span class="text-xs text-gray-400">Edge-TTS</span></div>
+<span id="status-text-edgetts" class="text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400">Checking...</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2"><div id="status-youtube" class="w-2 h-2 rounded-full api-status-connecting"></div><span class="text-xs text-gray-400">YouTube</span></div>
+<span id="status-text-youtube" class="text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400">Checking...</span>
+</div>
+</div>
+<button onclick="checkHealth()" class="mt-3 w-full py-2 rounded-lg bg-white/5 text-xs text-gray-400 hover:bg-white/10 transition">
+<i class="fas fa-sync-alt mr-1"></i> Refresh Status
+</button>
+</div>
+</div>
+</aside>
+
+<main class="lg:ml-64 min-h-screen">
+<header class="sticky top-0 z-30 glass-panel border-b border-white/5">
+<div class="flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-4">
+<button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-white/5 text-gray-400"><i class="fas fa-bars"></i></button>
+<div>
+<h2 id="pageTitle" class="text-xl font-bold text-white">DASHBOARD</h2>
+<p id="pageSubtitle" class="text-xs text-gray-500">NeuroTube AI v3.0 - All Free APIs</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-400/10 border border-green-400/20">
+<div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div><span class="text-xs text-green-400">System Online</span>
+</div>
+</div>
+</div>
+</header>
+
+<div class="p-6">
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="tab-content">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="glass-panel rounded-2xl p-5">
+<div class="flex items-center justify-between mb-3">
+<div class="w-10 h-10 rounded-xl bg-cyan-400/10 flex items-center justify-center"><i class="fas fa-file-alt text-cyan-400"></i></div>
+<span id="dash-scripts" class="text-2xl font-bold text-white">0</span>
+</div>
+<p class="text-sm text-gray-400">Scripts Generated</p>
+</div>
+<div class="glass-panel rounded-2xl p-5">
+<div class="flex items-center justify-between mb-3">
+<div class="w-10 h-10 rounded-xl bg-purple-400/10 flex items-center justify-center"><i class="fas fa-image text-purple-400"></i></div>
+<span id="dash-images" class="text-2xl font-bold text-white">0</span>
+</div>
+<p class="text-sm text-gray-400">Images Generated</p>
+</div>
+<div class="glass-panel rounded-2xl p-5">
+<div class="flex items-center justify-between mb-3">
+<div class="w-10 h-10 rounded-xl bg-pink-400/10 flex items-center justify-center"><i class="fas fa-video text-pink-400"></i></div>
+<span id="dash-videos" class="text-2xl font-bold text-white">0</span>
+</div>
+<p class="text-sm text-gray-400">Videos Created</p>
+</div>
+<div class="glass-panel rounded-2xl p-5">
+<div class="flex items-center justify-between mb-3">
+<div class="w-10 h-10 rounded-xl bg-green-400/10 flex items-center justify-center"><i class="fas fa-microphone text-green-400"></i></div>
+<span id="dash-voices" class="text-2xl font-bold text-white">0</span>
+</div>
+<p class="text-sm text-gray-400">Voice Clips</p>
+</div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="lg:col-span-2 glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+<button onclick="switchTab('create')" class="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 hover:border-cyan-500/40 transition text-left">
+<i class="fas fa-magic text-cyan-400 text-xl mb-2"></i><p class="text-sm font-medium text-white">Create Full Video</p><p class="text-xs text-gray-500 mt-1">Script + Images + Voice</p>
+</button>
+<button onclick="switchTab('scripts')" class="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-500/40 transition text-left">
+<i class="fas fa-file-alt text-purple-400 text-xl mb-2"></i><p class="text-sm font-medium text-white">Generate Script</p><p class="text-xs text-gray-500 mt-1">OpenRouter AI</p>
+</button>
+<button onclick="switchTab('images')" class="p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 hover:border-green-500/40 transition text-left">
+<i class="fas fa-image text-green-400 text-xl mb-2"></i><p class="text-sm font-medium text-white">Generate Images</p><p class="text-xs text-gray-500 mt-1">Gemini + Pollinations</p>
+</button>
+<button onclick="switchTab('voice')" class="p-4 rounded-xl bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 hover:border-yellow-500/40 transition text-left">
+<i class="fas fa-microphone text-yellow-400 text-xl mb-2"></i><p class="text-sm font-medium text-white">Generate Voice</p><p class="text-xs text-gray-500 mt-1">Edge-TTS Free</p>
+</button>
+<button onclick="switchTab('ai-video')" class="p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-pink-500/10 border border-red-500/20 hover:border-red-500/40 transition text-left">
+<i class="fas fa-robot text-red-400 text-xl mb-2"></i><p class="text-sm font-medium text-white">AI Video</p><p class="text-xs text-gray-500 mt-1">Direct AI Generation</p>
+</button>
+<button onclick="switchTab('library')" class="p-4 rounded-xl bg-gradient-to-br from-gray-500/10 to-slate-500/10 border border-gray-500/20 hover:border-gray-500/40 transition text-left">
+<i class="fas fa-folder text-gray-400 text-xl mb-2"></i><p class="text-sm font-medium text-white">My Library</p><p class="text-xs text-gray-500 mt-1">View all content</p>
+</button>
+</div>
+</div>
+<div class="glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">API Usage</h3>
+<div class="space-y-4">
+<div><div class="flex justify-between text-xs mb-1"><span class="text-gray-400">OpenRouter</span><span id="api-openrouter" class="text-cyan-400">0 calls</span></div><div class="h-1.5 rounded-full bg-white/5 overflow-hidden"><div class="h-full bg-cyan-400 rounded-full" style="width:60%"></div></div></div>
+<div><div class="flex justify-between text-xs mb-1"><span class="text-gray-400">Gemini</span><span id="api-gemini" class="text-purple-400">0 calls</span></div><div class="h-1.5 rounded-full bg-white/5 overflow-hidden"><div class="h-full bg-purple-400 rounded-full" style="width:40%"></div></div></div>
+<div><div class="flex justify-between text-xs mb-1"><span class="text-gray-400">Edge-TTS</span><span id="api-edgetts" class="text-green-400">0 calls</span></div><div class="h-1.5 rounded-full bg-white/5 overflow-hidden"><div class="h-full bg-green-400 rounded-full" style="width:80%"></div></div></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- CREATE VIDEO -->
+<div id="tab-create" class="tab-content hidden">
+<div class="max-w-3xl mx-auto">
+<div class="glass-panel rounded-2xl p-6 mb-6">
+<h3 class="text-lg font-semibold text-white mb-4">Full Pipeline: Script to Video</h3>
+<div class="space-y-4">
+<div><label class="block text-sm text-gray-400 mb-2">Video Topic</label><input id="createTopic" type="text" placeholder="e.g., How to Stay Motivated in 2026" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none"></div>
+<div class="grid grid-cols-2 gap-4">
+<div><label class="block text-sm text-gray-400 mb-2">Language</label><select id="createLang" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="english">English</option><option value="hindi">Hindi</option><option value="hinglish">Hinglish</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Length</label><select id="createLength" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="short">Short (1-3 min)</option><option value="medium" selected>Medium (5-8 min)</option><option value="long">Long (10-15 min)</option></select></div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div><label class="block text-sm text-gray-400 mb-2">Frames (Images)</label><select id="createFrames" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="15">15 frames (15s)</option><option value="30" selected>30 frames (30s)</option><option value="45">45 frames (45s)</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Voice</label><select id="createVoice" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="hi-IN-MadhurNeural">Hindi Male (Madhur)</option><option value="hi-IN-SwaraNeural">Hindi Female (Swara)</option><option value="en-US-GuyNeural">English Male (Guy)</option><option value="en-US-JennyNeural">English Female (Jenny)</option></select></div>
+</div>
+<div><label class="block text-sm text-gray-400 mb-2">Visual Style</label><select id="createStyle" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="cinematic">Cinematic</option><option value="animated">Animated</option><option value="realistic">Realistic</option><option value="minimal">Minimal</option></select></div>
+<button id="pipeline-btn" onclick="runFullPipeline()" class="btn-primary w-full py-4 rounded-xl text-white font-semibold text-lg"><i class="fas fa-magic mr-2"></i> GENERATE COMPLETE VIDEO</button>
+</div>
+</div>
+
+<div id="pipelineProgress" class="hidden glass-panel rounded-2xl p-6 mb-6">
+<h3 class="text-sm font-semibold text-white mb-4">Pipeline Progress</h3>
+<div class="space-y-3">
+<div id="p-step-1" class="flex items-center gap-4 p-3 rounded-xl border border-white/10"><div id="p-icon-1" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center"><i class="fas fa-file-alt text-gray-500"></i></div><div class="flex-1"><p class="text-sm text-white font-medium">Generate Script</p><p id="p-status-1" class="text-xs text-gray-500">Waiting...</p></div><div class="w-24 h-1 rounded-full bg-white/5 overflow-hidden"><div id="p-bar-1" class="h-full bg-cyan-400 rounded-full transition-all" style="width:0%"></div></div></div>
+<div id="p-step-2" class="flex items-center gap-4 p-3 rounded-xl border border-white/10"><div id="p-icon-2" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center"><i class="fas fa-image text-gray-500"></i></div><div class="flex-1"><p class="text-sm text-white font-medium">Generate Images</p><p id="p-status-2" class="text-xs text-gray-500">Waiting...</p></div><div class="w-24 h-1 rounded-full bg-white/5 overflow-hidden"><div id="p-bar-2" class="h-full bg-purple-400 rounded-full transition-all" style="width:0%"></div></div></div>
+<div id="p-step-3" class="flex items-center gap-4 p-3 rounded-xl border border-white/10"><div id="p-icon-3" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center"><i class="fas fa-microphone text-gray-500"></i></div><div class="flex-1"><p class="text-sm text-white font-medium">Generate Voice</p><p id="p-status-3" class="text-xs text-gray-500">Waiting...</p></div><div class="w-24 h-1 rounded-full bg-white/5 overflow-hidden"><div id="p-bar-3" class="h-full bg-green-400 rounded-full transition-all" style="width:0%"></div></div></div>
+<div id="p-step-4" class="flex items-center gap-4 p-3 rounded-xl border border-white/10"><div id="p-icon-4" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center"><i class="fas fa-video text-gray-500"></i></div><div class="flex-1"><p class="text-sm text-white font-medium">Assemble Video</p><p id="p-status-4" class="text-xs text-gray-500">Waiting...</p></div><div class="w-24 h-1 rounded-full bg-white/5 overflow-hidden"><div id="p-bar-4" class="h-full bg-pink-400 rounded-full transition-all" style="width:0%"></div></div></div>
+</div>
+</div>
+
+<div id="pipelineResults" class="hidden"><div id="pipeline-output"></div></div>
+</div>
+</div>
+
+<!-- SCRIPT AI -->
+<div id="tab-scripts" class="tab-content hidden">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="lg:col-span-1 glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">Script Settings</h3>
+<div class="space-y-4">
+<div><label class="block text-sm text-gray-400 mb-2">Topic</label><input id="scriptTopic" type="text" placeholder="Enter video topic..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none"></div>
+<div><label class="block text-sm text-gray-400 mb-2">Language</label><select id="scriptLang" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="english">English</option><option value="hindi">Hindi</option><option value="hinglish">Hinglish</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Length</label><select id="scriptLength" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="short">Short (300 words)</option><option value="medium" selected>Medium (600 words)</option><option value="long">Long (1200 words)</option><option value="extended">Extended (2000 words)</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Template</label><select id="scriptTemplate" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="hook-story-cta">Hook-Story-CTA</option><option value="listicle">Listicle</option><option value="before-after">Before-After</option><option value="myth-buster">Myth-Buster</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Tone</label><div class="grid grid-cols-2 gap-2"><button onclick="selectTone(this)" data-tone="motivational" class="tone-btn active px-3 py-2 rounded-lg bg-cyan-400/20 text-cyan-400 border border-cyan-400/30 text-xs">Motivational</button><button onclick="selectTone(this)" data-tone="educational" class="tone-btn px-3 py-2 rounded-lg bg-white/5 text-gray-400 border border-white/10 text-xs">Educational</button><button onclick="selectTone(this)" data-tone="entertaining" class="tone-btn px-3 py-2 rounded-lg bg-white/5 text-gray-400 border border-white/10 text-xs">Entertaining</button><button onclick="selectTone(this)" data-tone="professional" class="tone-btn px-3 py-2 rounded-lg bg-white/5 text-gray-400 border border-white/10 text-xs">Professional</button></div></div>
+<button id="script-btn" onclick="generateScript()" class="btn-primary w-full py-3 rounded-xl text-white font-semibold"><i class="fas fa-magic mr-2"></i> GENERATE SCRIPT</button>
+</div>
+</div>
+<div class="lg:col-span-2 glass-panel rounded-2xl p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-semibold text-white">Generated Script</h3>
+<div class="flex gap-2"><button onclick="copyScript()" class="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-gray-400 hover:bg-white/10"><i class="fas fa-copy mr-1"></i> Copy</button><button onclick="downloadScript()" class="px-3 py-1.5 rounded-lg bg-white/5 text-xs text-gray-400 hover:bg-white/10"><i class="fas fa-download mr-1"></i> Download</button><button onclick="useInPipeline()" class="px-3 py-1.5 rounded-lg bg-cyan-400/20 text-xs text-cyan-400 hover:bg-cyan-400/30"><i class="fas fa-arrow-right mr-1"></i> Use in Pipeline</button></div>
+</div>
+<div class="flex gap-4 mb-4 text-xs">
+<div class="flex items-center gap-2"><span class="text-gray-500">Words:</span><span id="wordCount" class="text-cyan-400 font-semibold">0</span><div class="w-16 h-1 rounded-full bg-white/5 overflow-hidden"><div id="wordCountBar" class="h-full bg-cyan-400 rounded-full transition-all" style="width:0%"></div></div></div>
+<div class="flex items-center gap-2"><span class="text-gray-500">Duration:</span><span id="duration" class="text-purple-400 font-semibold">0:00</span><div class="w-16 h-1 rounded-full bg-white/5 overflow-hidden"><div id="durationBar" class="h-full bg-purple-400 rounded-full transition-all" style="width:0%"></div></div></div>
+</div>
+<div id="scriptOutput" class="p-4 rounded-xl bg-black/30 border border-white/5 min-h-[400px] text-sm leading-relaxed whitespace-pre-wrap text-gray-300"><span class="text-gray-600">Your generated script will appear here...</span></div>
+</div>
+</div>
+</div>
+
+<!-- IMAGE GENERATOR -->
+<div id="tab-images" class="tab-content hidden">
+<div class="max-w-4xl mx-auto">
+<div class="glass-panel rounded-2xl p-6 mb-6">
+<h3 class="text-lg font-semibold text-white mb-4">Generate Images</h3>
+<div class="space-y-4">
+<div><label class="block text-sm text-gray-400 mb-2">Prompt</label><textarea id="imagePrompt" rows="3" placeholder="Describe the image you want..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none resize-none"></textarea></div>
+<div class="grid grid-cols-3 gap-4">
+<div><label class="block text-sm text-gray-400 mb-2">Count</label><select id="imageCount" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="1">1 Image</option><option value="2">2 Images</option><option value="3">3 Images</option><option value="4" selected>4 Images</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Type</label><select id="imageType" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="standalone">Standalone</option><option value="video-frames">Video Frames</option><option value="thumbnail">Thumbnail</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Aspect Ratio</label><select id="imageRatio" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="16:9">16:9 (Video)</option><option value="9:16">9:16 (Shorts)</option><option value="1:1">1:1 (Square)</option></select></div>
+</div>
+<button id="image-btn" onclick="generateImages()" class="btn-primary w-full py-3 rounded-xl text-white font-semibold"><i class="fas fa-magic mr-2"></i> GENERATE IMAGES</button>
+</div>
+</div>
+<div id="imageResults" class="grid grid-cols-2 gap-4"></div>
+</div>
+</div>
+
+<!-- VOICE GENERATOR -->
+<div id="tab-voice" class="tab-content hidden">
+<div class="max-w-3xl mx-auto">
+<div class="glass-panel rounded-2xl p-6 mb-6">
+<h3 class="text-lg font-semibold text-white mb-4">Generate Voice (Edge-TTS - FREE)</h3>
+<div class="space-y-4">
+<div><label class="block text-sm text-gray-400 mb-2">Text to Speak</label><textarea id="voiceText" rows="5" placeholder="Enter text to convert to speech..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none resize-none"></textarea></div>
+<div class="grid grid-cols-2 gap-4">
+<div><label class="block text-sm text-gray-400 mb-2">Voice</label><select id="voiceSelect" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="hi-IN-MadhurNeural">Hindi Male (Madhur)</option><option value="hi-IN-SwaraNeural">Hindi Female (Swara)</option><option value="en-US-GuyNeural">English Male (Guy)</option><option value="en-US-JennyNeural">English Female (Jenny)</option><option value="en-GB-RyanNeural">English UK (Ryan)</option><option value="en-IN-PrabhatNeural">English India (Prabhat)</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Rate</label><select id="voiceRate" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="-50%">Slow (-50%)</option><option value="-25%">Slower (-25%)</option><option value="+0%" selected>Normal</option><option value="+25%">Faster (+25%)</option><option value="+50%">Fast (+50%)</option></select></div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div><label class="block text-sm text-gray-400 mb-2">Volume</label><select id="voiceVolume" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="-50%">Quiet (-50%)</option><option value="-25%">Quieter (-25%)</option><option value="+0%" selected>Normal</option><option value="+25%">Louder (+25%)</option><option value="+50%">Loud (+50%)</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Pitch</label><select id="voicePitch" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="-50Hz">Low (-50Hz)</option><option value="-25Hz">Lower (-25Hz)</option><option value="+0Hz" selected>Normal</option><option value="+25Hz">Higher (+25Hz)</option><option value="+50Hz">High (+50Hz)</option></select></div>
+</div>
+<button id="voice-btn" onclick="generateVoice()" class="btn-primary w-full py-3 rounded-xl text-white font-semibold"><i class="fas fa-microphone mr-2"></i> GENERATE VOICE</button>
+</div>
+</div>
+<div id="voiceOutput" class="glass-panel rounded-2xl p-6 hidden"></div>
+</div>
+</div>
+
+<!-- AI VIDEO -->
+<div id="tab-ai-video" class="tab-content hidden">
+<div class="max-w-3xl mx-auto">
+<div class="glass-panel rounded-2xl p-6 mb-6">
+<h3 class="text-lg font-semibold text-white mb-4">AI Video Generator (FREE)</h3>
+<p class="text-sm text-gray-400 mb-4">Generates images from your prompt and assembles them into a video. No API key needed!</p>
+<div class="space-y-4">
+<div><label class="block text-sm text-gray-400 mb-2">Video Prompt</label><textarea id="aiVideoPrompt" rows="3" placeholder="e.g., A serene mountain landscape at sunrise with flowing clouds..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none resize-none"></textarea></div>
+<div class="grid grid-cols-2 gap-4">
+<div><label class="block text-sm text-gray-400 mb-2">Duration</label><select id="aiVideoDuration" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="3">3 seconds</option><option value="5" selected>5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option></select></div>
+<div><label class="block text-sm text-gray-400 mb-2">Style</label><select id="aiVideoStyle" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-400 focus:outline-none"><option value="cinematic">Cinematic</option><option value="animated">Animated</option><option value="realistic">Realistic</option><option value="abstract">Abstract</option></select></div>
+</div>
+<button id="ai-video-btn" onclick="generateAIVideo()" class="btn-primary w-full py-3 rounded-xl text-white font-semibold"><i class="fas fa-robot mr-2"></i> GENERATE AI VIDEO</button>
+</div>
+</div>
+<div id="aiVideoOutput" class="glass-panel rounded-2xl p-6 hidden"></div>
+
+<div class="glass-panel rounded-2xl p-6 mt-6">
+<h3 class="text-lg font-semibold text-white mb-4">Free AI Video Tools Comparison</h3>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead><tr class="text-gray-400 border-b border-white/5"><th class="text-left py-2">Tool</th><th class="text-left py-2">Free Tier</th><th class="text-left py-2">Watermark</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Quality</th></tr></thead>
+<tbody class="text-gray-300">
+<tr class="border-b border-white/5"><td class="py-3 font-medium text-cyan-400">Pollinations AI</td><td>Unlimited</td><td class="text-green-400">None</td><td>Image-based</td><td>Good</td></tr>
+<tr class="border-b border-white/5"><td class="py-3 font-medium text-purple-400">Seedance</td><td>30/month</td><td class="text-green-400">None</td><td>Up to 5s</td><td>Excellent</td></tr>
+<tr class="border-b border-white/5"><td class="py-3 font-medium text-pink-400">Pika Labs</td><td>10/day</td><td class="text-yellow-400">Small</td><td>3s</td><td>Good</td></tr>
+<tr class="border-b border-white/5"><td class="py-3 font-medium text-green-400">Haiper</td><td>10/day</td><td class="text-green-400">None</td><td>2-4s</td><td>Good</td></tr>
+<tr><td class="py-3 font-medium text-yellow-400">NeuroTube (This App)</td><td>Unlimited</td><td class="text-green-400">None</td><td>30-35s</td><td>Great</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ANALYTICS -->
+<div id="tab-analytics" class="tab-content hidden">
+<div class="glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">Content Analytics</h3>
+<div class="h-64"><canvas id="contentChart"></canvas></div>
+</div>
+</div>
+
+<!-- LIBRARY -->
+<div id="tab-library" class="tab-content hidden">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">Recent Scripts</h3>
+<div id="libraryScripts" class="space-y-2 max-h-96 overflow-y-auto"><p class="text-xs text-gray-500 text-center py-4">Loading...</p></div>
+</div>
+<div class="glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">Recent Videos</h3>
+<div id="libraryVideos" class="space-y-2 max-h-96 overflow-y-auto"><p class="text-xs text-gray-500 text-center py-4">Loading...</p></div>
+</div>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div id="tab-settings" class="tab-content hidden">
+<div class="max-w-2xl mx-auto">
+<div class="glass-panel rounded-2xl p-6">
+<h3 class="text-lg font-semibold text-white mb-4">API Configuration</h3>
+<div class="space-y-4">
+<div class="p-4 rounded-xl bg-white/5 border border-white/5">
+<div class="flex items-center justify-between mb-2"><span class="text-sm font-medium text-white">OpenRouter API Key</span><span class="text-xs text-cyan-400">Required for scripts</span></div>
+<p class="text-xs text-gray-500">Get free key at <a href="https://openrouter.ai/keys" target="_blank" class="text-cyan-400 hover:underline">openrouter.ai/keys</a></p>
+</div>
+<div class="p-4 rounded-xl bg-white/5 border border-white/5">
+<div class="flex items-center justify-between mb-2"><span class="text-sm font-medium text-white">Gemini API Key</span><span class="text-xs text-purple-400">Optional (fallback: Pollinations)</span></div>
+<p class="text-xs text-gray-500">Get free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 hover:underline">aistudio.google.com</a></p>
+</div>
+<div class="p-4 rounded-xl bg-white/5 border border-white/5">
+<div class="flex items-center justify-between mb-2"><span class="text-sm font-medium text-white">Edge-TTS</span><span class="text-xs text-green-400">FREE - No key needed!</span></div>
+<p class="text-xs text-gray-500">Install: <code class="text-green-400">pip install edge-tts</code></p>
+</div>
+<div class="p-4 rounded-xl bg-white/5 border border-white/5">
+<div class="flex items-center justify-between mb-2"><span class="text-sm font-medium text-white">ffmpeg</span><span class="text-xs text-green-400">FREE - Required for video</span></div>
+<p class="text-xs text-gray-500">Install: <code class="text-green-400">apt-get install ffmpeg</code> or <code class="text-green-400">brew install ffmpeg</code></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+<script>
+const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3000/api' : '/api';
+let currentTab = 'dashboard';
+let generatedScript = '';
+let generatedImages = [];
+let generatedVoice = null;
+
+const tabTitles = {
+'dashboard': ['DASHBOARD','NeuroTube AI v3.0 - All Free APIs'],
+'create': ['CREATE VIDEO','Full Pipeline: Script -> Images -> Voice -> Video'],
+'scripts': ['SCRIPT AI','Generate with OpenRouter (FREE)'],
+'images': ['IMAGE GENERATOR','Generate with Gemini API + Pollinations (FREE)'],
+'voice': ['VOICE GENERATOR','Generate with Edge-TTS (FREE, No API Key)'],
+'ai-video': ['AI VIDEO','Generate with Pollinations (FREE, No Watermark)'],
+'analytics': ['ANALYTICS','Track your content generation'],
+'library': ['MY LIBRARY','All your generated content'],
+'settings': ['SETTINGS','Configure API keys and preferences']
+};
+
+function switchTab(tabName) {
+document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+document.getElementById('tab-'+tabName).classList.remove('hidden');
+document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('tab-active'));
+document.querySelector(`[data-tab="${tabName}"]`).classList.add('tab-active');
+document.getElementById('pageTitle').textContent = tabTitles[tabName][0];
+document.getElementById('pageSubtitle').textContent = tabTitles[tabName][1];
+currentTab = tabName;
+if(tabName === 'analytics') initCharts();
+if(tabName === 'library') loadLibrary();
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+
+function showToast(message, type='info') {
+const colors = {'success':'border-green-400 text-green-400','warning':'border-yellow-400 text-yellow-400','error':'border-red-400 text-red-400','info':'border-cyan-400 text-cyan-400'};
+const toast = document.createElement('div');
+toast.className = `glass-panel rounded-xl p-4 border-l-4 ${colors[type]} notification-toast max-w-sm`;
+toast.innerHTML = `<p class="text-sm text-white">${message}</p>`;
+document.getElementById('toastContainer').appendChild(toast);
+setTimeout(() => toast.remove(), 5000);
+}
+
+async function checkHealth() {
+showToast('Checking API status...', 'info');
+try {
+const res = await fetch(`${API_BASE}/system/health`);
+const data = await res.json();
+updateApiStatus('openrouter', data.services.openrouter);
+updateApiStatus('gemini', data.services.gemini);
+updateApiStatus('edgetts', data.services.edgetts);
+updateApiStatus('youtube', data.services.youtube);
+showToast('API status updated!', 'success');
+} catch(e) { showToast('Server not running. Start with: npm start', 'error'); }
+}
+
+function updateApiStatus(api, status) {
+const el = document.getElementById(`status-${api}`);
+const textEl = document.getElementById(`status-text-${api}`);
+if(!el) return;
+el.className = 'w-2 h-2 rounded-full ';
+if(status === 'connected' || status === 'available') {
+el.classList.add('api-status-online');
+if(textEl){ textEl.textContent='Active'; textEl.className='text-xs px-2 py-1 rounded-full bg-green-400/20 text-green-400'; }
+} else if(status === 'no_key' || status === 'disconnected') {
+el.classList.add('api-status-offline');
+if(textEl){ textEl.textContent='Setup'; textEl.className='text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400'; }
+} else {
+el.classList.add('api-status-connecting');
+if(textEl){ textEl.textContent='Checking...'; textEl.className='text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400'; }
+}
+}
+
+async function generateScript() {
+const topic = document.getElementById('scriptTopic').value;
+if(!topic){ showToast('Enter a topic first!', 'warning'); return; }
+const btn = document.getElementById('script-btn');
+btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+const output = document.getElementById('scriptOutput');
+output.innerHTML = '<div class="flex items-center gap-2 text-cyan-400"><i class="fas fa-spinner fa-spin"></i><span>Connecting to OpenRouter...</span></div>';
+try {
+const res = await fetch(`${API_BASE}/generate-script`, {
+method: 'POST', headers: {'Content-Type':'application/json'},
+body: JSON.stringify({topic, language: document.getElementById('scriptLang').value, length: document.getElementById('scriptLength').value, tone: document.querySelector('.tone-btn.active')?.dataset.tone || 'motivational', template: document.getElementById('scriptTemplate').value})
+});
+const data = await res.json();
+if(data.success) {
+generatedScript = data.script;
+output.innerHTML = formatScript(data.script);
+document.getElementById('wordCount').textContent = data.wordCount;
+document.getElementById('wordCountBar').style.width = Math.min((data.wordCount/1500)*100,100)+'%';
+document.getElementById('duration').textContent = data.estimatedDuration+':00';
+document.getElementById('durationBar').style.width = Math.min((data.estimatedDuration/15)*100,100)+'%';
+showToast(`Script generated! ${data.wordCount} words`, 'success');
+updateStats();
+} else throw new Error(data.error);
+} catch(e) {
+output.innerHTML = `<span class="text-red-400">Error: ${e.message}</span>`;
+showToast('Script failed: '+e.message, 'error');
+} finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic mr-2"></i> GENERATE SCRIPT'; }
+}
+
+function formatScript(script) {
+return script.replace(/\[([0-9:]+)\s+(HOOK|INTRO|MAIN|CTA|B-ROLL|MUSIC CUE|EMOTION:[^\]]+)\]/gi, '<span class="text-cyan-400 font-bold">[$1 $2]</span>').replace(/\[METADATA\]/gi, '<span class="text-purple-400 font-bold">[METADATA]</span>').replace(/\[SCRIPT\]/gi, '<span class="text-green-400 font-bold">[SCRIPT]</span>');
+}
+
+function selectTone(btn) {
+document.querySelectorAll('.tone-btn').forEach(b => { b.classList.remove('bg-cyan-400/20','text-cyan-400','border-cyan-400/30','active'); b.classList.add('bg-white/5','text-gray-400','border-white/10'); });
+btn.classList.remove('bg-white/5','text-gray-400','border-white/10');
+btn.classList.add('bg-cyan-400/20','text-cyan-400','border-cyan-400/30','active');
+}
+
+function copyScript() { if(!generatedScript){ showToast('Generate a script first!', 'warning'); return; } navigator.clipboard.writeText(generatedScript).then(() => showToast('Copied!', 'success')); }
+function downloadScript() { if(!generatedScript){ showToast('Generate a script first!', 'warning'); return; } const blob = new Blob([generatedScript], {type:'text/plain'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `script_${Date.now()}.txt`; a.click(); URL.revokeObjectURL(url); showToast('Downloaded!', 'success'); }
+function useInPipeline() { if(!generatedScript){ showToast('Generate a script first!', 'warning'); return; } document.getElementById('createTopic').value = document.getElementById('scriptTopic').value; switchTab('create'); showToast('Script loaded! Now click GENERATE COMPLETE VIDEO', 'info'); }
+
+async function generateImages() {
+const prompt = document.getElementById('imagePrompt').value;
+if(!prompt){ showToast('Enter a prompt!', 'warning'); return; }
+const btn = document.getElementById('image-btn');
+btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+try {
+const res = await fetch(`${API_BASE}/generate-images`, {
+method: 'POST', headers: {'Content-Type':'application/json'},
+body: JSON.stringify({prompt, count: parseInt(document.getElementById('imageCount').value), type: document.getElementById('imageType').value, aspectRatio: document.getElementById('imageRatio').value})
+});
+const data = await res.json();
+if(data.success) {
+generatedImages = data.images;
+document.getElementById('imageResults').innerHTML = data.images.map(img => `<div class="aspect-video bg-gray-800 rounded-xl overflow-hidden border border-white/5"><img src="${img.url}" class="w-full h-full object-cover" alt="Generated" loading="lazy"><div class="p-2 bg-black/50"><p class="text-xs text-gray-400 truncate">${img.source || 'AI'}</p></div></div>`).join('');
+showToast(`${data.count} images generated!`, 'success');
+updateStats();
+} else throw new Error(data.error);
+} catch(e) { showToast('Image generation failed: '+e.message, 'error'); }
+finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic mr-2"></i> GENERATE IMAGES'; }
+}
+
+async function generateVoice() {
+const text = document.getElementById('voiceText').value;
+if(!text){ showToast('Enter text to speak!', 'warning'); return; }
+const btn = document.getElementById('voice-btn');
+btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+try {
+const res = await fetch(`${API_BASE}/generate-voice`, {
+method: 'POST', headers: {'Content-Type':'application/json'},
+body: JSON.stringify({text, voice: document.getElementById('voiceSelect').value, rate: document.getElementById('voiceRate').value, volume: document.getElementById('voiceVolume').value, pitch: document.getElementById('voicePitch').value})
+});
+const data = await res.json();
+if(data.success) {
+generatedVoice = data;
+const output = document.getElementById('voiceOutput');
+output.classList.remove('hidden');
+output.innerHTML = `<div class="w-full"><audio controls class="w-full mb-3"><source src="${data.audioUrl}" type="audio/mpeg"></audio><div class="flex gap-2"><a href="${data.audioUrl}" download class="flex-1 py-2 rounded-lg bg-green-400/20 text-green-400 text-sm text-center hover:bg-green-400/30"><i class="fas fa-download mr-1"></i> Download MP3</a></div><div class="mt-3 text-xs text-gray-400"><p>Voice: ${data.voice}</p><p>Duration: ~${data.duration}s</p><p>Characters: ${data.textLength}</p></div></div>`;
+showToast('Voice generated! Realistic Edge-TTS voice', 'success');
+updateStats();
+} else throw new Error(data.error);
+} catch(e) { showToast('Voice failed: '+e.message, 'error'); }
+finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-microphone mr-2"></i> GENERATE VOICE'; }
+}
+
+async function runFullPipeline() {
+const topic = document.getElementById('createTopic').value;
+if(!topic){ showToast('Enter a video topic!', 'warning'); return; }
+const btn = document.getElementById('pipeline-btn');
+btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> STARTING PIPELINE...';
+const progress = document.getElementById('pipelineProgress');
+const results = document.getElementById('pipelineResults');
+progress.classList.remove('hidden'); results.classList.add('hidden');
+resetPipelineStep(1); resetPipelineStep(2); resetPipelineStep(3); resetPipelineStep(4);
+try {
+updatePipelineStep(1, 'active', 'Writing script with OpenRouter...');
+const scriptRes = await fetch(`${API_BASE}/generate-script`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topic, language:document.getElementById('createLang').value, length:document.getElementById('createLength').value, tone:'motivational'})});
+const scriptData = await scriptRes.json();
+if(!scriptData.success) throw new Error(scriptData.error);
+updatePipelineStep(1, 'complete', `Script: ${scriptData.wordCount} words`);
+
+updatePipelineStep(2, 'active', 'Generating images...');
+const frameCount = parseInt(document.getElementById('createFrames').value);
+const imageRes = await fetch(`${API_BASE}/generate-images`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt:topic, count:Math.min(frameCount,4), type:'video-frames'})});
+const imageData = await imageRes.json();
+if(!imageData.success) throw new Error(imageData.error);
+updatePipelineStep(2, 'complete', `${imageData.count} images generated (${imageData.source || 'AI'})`);
+
+updatePipelineStep(3, 'active', 'Generating voice with Edge-TTS...');
+const cleanScript = scriptData.script.replace(/\[.*?\]/g,'').replace(/\d{1,2}:\d{2}[-–]\d{1,2}:\d{2}/g,'').trim();
+const voiceRes = await fetch(`${API_BASE}/generate-voice`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text:cleanScript.substring(0,3000), voice:document.getElementById('createVoice').value})});
+const voiceData = await voiceRes.json();
+if(!voiceData.success) throw new Error(voiceData.error);
+updatePipelineStep(3, 'complete', `Voice: ${voiceData.duration}s`);
+
+updatePipelineStep(4, 'active', 'Assembling video with ffmpeg...');
+const videoRes = await fetch(`${API_BASE}/assemble-video`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({script:scriptData.script, topic, imageCount:frameCount, voice:document.getElementById('createVoice').value, style:document.getElementById('createStyle').value})});
+const videoData = await videoRes.json();
+if(!videoData.success) throw new Error(videoData.error);
+updatePipelineStep(4, 'complete', `Video: ${videoData.sizeMB}MB, ${videoData.duration}s`);
+
+progress.classList.add('hidden'); results.classList.remove('hidden');
+document.getElementById('pipeline-output').innerHTML = `<div class="p-4 rounded-xl bg-gray-800/50 border border-green-400/20"><div class="flex items-center gap-2 mb-3"><i class="fas fa-check-circle text-green-400 text-xl"></i><span class="text-white font-bold">Video Complete!</span></div><video controls class="w-full rounded-xl mb-3"><source src="${videoData.videoUrl}" type="video/mp4"></video><div class="grid grid-cols-2 gap-2 text-xs text-gray-400"><div>Duration: ${videoData.duration}s</div><div>Frames: ${videoData.frameCount}</div><div>Resolution: ${videoData.resolution}</div><div>Size: ${videoData.sizeMB}MB</div></div><div class="flex gap-2 mt-3"><a href="${videoData.videoUrl}" download class="flex-1 py-2 rounded-lg bg-green-400/20 text-green-400 text-sm text-center hover:bg-green-400/30"><i class="fas fa-download mr-1"></i> Download</a><button onclick="switchTab('library')" class="flex-1 py-2 rounded-lg bg-purple-400/20 text-purple-400 text-sm hover:bg-purple-400/30"><i class="fas fa-folder mr-1"></i> Library</button></div></div>`;
+showToast('Video created successfully!', 'success');
+updateStats();
+} catch(e) {
+console.error(e);
+showToast('Pipeline failed: '+e.message, 'error');
+document.getElementById('p-step-4').classList.add('step-error');
+document.getElementById('p-status-4').textContent = 'Failed: '+e.message;
+document.getElementById('p-status-4').className = 'text-xs text-red-400';
+} finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic mr-2"></i> GENERATE COMPLETE VIDEO'; }
+}
+
+function resetPipelineStep(step) {
+const el = document.getElementById(`p-step-${step}`);
+el.className = 'flex items-center gap-4 p-3 rounded-xl border border-white/10';
+document.getElementById(`p-icon-${step}`).innerHTML = `<i class="fas fa-${['file-alt','image','microphone','video'][step-1]} text-gray-500"></i>`;
+document.getElementById(`p-icon-${step}`).className = 'w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center';
+document.getElementById(`p-status-${step}`).textContent = 'Waiting...';
+document.getElementById(`p-status-${step}`).className = 'text-xs text-gray-500';
+document.getElementById(`p-bar-${step}`).style.width = '0%';
+}
+
+function updatePipelineStep(step, status, message) {
+const el = document.getElementById(`p-step-${step}`);
+const icon = document.getElementById(`p-icon-${step}`);
+const statusText = document.getElementById(`p-status-${step}`);
+const bar = document.getElementById(`p-bar-${step}`);
+const colors = ['cyan','purple','green','pink'];
+const color = colors[step-1];
+if(status === 'active') {
+el.classList.add('step-active');
+icon.innerHTML = '<i class="fas fa-spinner fa-spin text-'+color+'-400"></i>';
+icon.className = `w-10 h-10 rounded-full bg-${color}-400/20 flex items-center justify-center`;
+statusText.textContent = message; statusText.className = `text-xs text-${color}-400`;
+bar.style.width = '60%';
+} else if(status === 'complete') {
+el.classList.remove('step-active'); el.classList.add('step-complete');
+icon.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+icon.className = 'w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center';
+statusText.textContent = message; statusText.className = 'text-xs text-green-400';
+bar.style.width = '100%';
+}
+}
+
+async function generateAIVideo() {
+const prompt = document.getElementById('aiVideoPrompt').value;
+if(!prompt){ showToast('Enter a video prompt!', 'warning'); return; }
+const btn = document.getElementById('ai-video-btn');
+btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+try {
+const res = await fetch(`${API_BASE}/generate-ai-video`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt, duration:parseInt(document.getElementById('aiVideoDuration').value), style:document.getElementById('aiVideoStyle').value})});
+const data = await res.json();
+if(data.success) {
+const output = document.getElementById('aiVideoOutput');
+output.classList.remove('hidden');
+output.innerHTML = `<div class="w-full"><video controls class="w-full rounded-xl mb-3"><source src="${data.videoUrl}" type="video/mp4"></video><div class="grid grid-cols-2 gap-2 text-xs text-gray-400 mb-3"><div>Duration: ${data.duration}s</div><div>Frames: ${data.frameCount}</div><div>Resolution: ${data.resolution}</div><div>Size: ${data.sizeMB}MB</div></div><div class="flex gap-2"><a href="${data.videoUrl}" download class="flex-1 py-2 rounded-lg bg-yellow-400/20 text-yellow-400 text-sm text-center hover:bg-yellow-400/30"><i class="fas fa-download mr-1"></i> Download</a></div></div>`;
+showToast('AI video generated!', 'success');
+} else throw new Error(data.error);
+} catch(e) { showToast('AI video failed: '+e.message, 'error'); }
+finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-robot mr-2"></i> GENERATE AI VIDEO'; }
+}
+
+async function updateStats() {
+try {
+const res = await fetch(`${API_BASE}/system/status`);
+const data = await res.json();
+document.getElementById('dash-scripts').textContent = data.databases.scripts;
+document.getElementById('dash-images').textContent = data.databases.images;
+document.getElementById('dash-videos').textContent = data.databases.videos;
+document.getElementById('dash-voices').textContent = data.databases.videos;
+document.getElementById('api-openrouter').textContent = data.apiCalls.openrouter + ' calls';
+document.getElementById('api-gemini').textContent = data.apiCalls.gemini + ' calls';
+document.getElementById('api-edgetts').textContent = data.apiCalls.gemini + ' calls';
+} catch(e) {}
+}
+
+async function loadLibrary() {
+try {
+const [scriptsRes, videosRes] = await Promise.all([fetch(`${API_BASE}/scripts`), fetch(`${API_BASE}/videos`)]);
+const scripts = await scriptsRes.json();
+const videos = await videosRes.json();
+document.getElementById('libraryScripts').innerHTML = scripts.scripts?.length ? scripts.scripts.slice(0,10).map(s => `<div class="p-3 rounded-xl bg-gray-800/50 border border-white/5"><p class="text-sm text-white truncate">${s.topic}</p><p class="text-xs text-gray-400">${s.wordCount} words &middot; ${s.language}</p></div>`).join('') : '<p class="text-xs text-gray-500 text-center py-4">No scripts yet</p>';
+document.getElementById('libraryVideos').innerHTML = videos.videos?.length ? videos.videos.slice(0,10).map(v => `<div class="p-3 rounded-xl bg-gray-800/50 border border-white/5"><p class="text-sm text-white truncate">${v.topic}</p><p class="text-xs text-gray-400">${v.duration}s &middot; ${v.sizeMB}MB</p></div>`).join('') : '<p class="text-xs text-gray-500 text-center py-4">No videos yet</p>';
+} catch(e) {}
+}
+
+function initCharts() {
+const ctx = document.getElementById('contentChart');
+if(!ctx || ctx.chart) return;
+ctx.chart = new Chart(ctx.getContext('2d'), {
+type: 'line',
+data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets: [{label:'Scripts', data:[2,5,3,8,4,6,7], borderColor:'#00f3ff', backgroundColor:'rgba(0,243,255,0.1)', fill:true}, {label:'Videos', data:[1,2,1,3,2,2,3], borderColor:'#bc13fe', backgroundColor:'rgba(188,19,254,0.1)', fill:true}] },
+options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#e0e0e0'}}}, scales:{y:{ticks:{color:'#666'}, grid:{color:'rgba(255,255,255,0.05)'}}, x:{ticks:{color:'#666'}, grid:{color:'rgba(255,255,255,0.05)'}}} }
+});
+}
+
+document.addEventListener('DOMContentLoaded', () => { checkHealth(); updateStats(); setInterval(updateStats, 30000); });
+</script>
+</body>
+</html>
