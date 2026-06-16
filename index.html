@@ -1,0 +1,571 @@
+    <script>
+    // ===== CONFIG =====
+    const API_BASE = window.location.origin.includes('localhost') ? 'http://localhost:3000/api' : '/api';
+    let currentTab = 'dashboard';
+    let generatedScript = '';
+    let generatedImages = [];
+    let generatedVoice = null;
+
+    // ===== TAB SWITCHING =====
+    const tabTitles = {
+        'dashboard': ['DASHBOARD', 'NeuroTube AI v3.0 — All Free APIs'],
+        'create': ['CREATE VIDEO', 'Full Pipeline: Script → Images → Voice → Video'],
+        'scripts': ['SCRIPT AI', 'Generate with OpenRouter (FREE)'],
+        'images': ['IMAGE GENERATOR', 'Generate with Gemini API (FREE)'],
+        'voice': ['VOICE GENERATOR', 'Generate with Edge-TTS (FREE, No API Key)'],
+        'ai-video': ['AI VIDEO', 'Generate with Seedance/Pollinations (FREE)'],
+        'analytics': ['ANALYTICS', 'Track your content generation'],
+        'library': ['MY LIBRARY', 'All your generated content'],
+        'settings': ['SETTINGS', 'Configure API keys and preferences']
+    };
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+        document.getElementById('tab-' + tabName).classList.remove('hidden');
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('tab-active'));
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('tab-active');
+        document.getElementById('pageTitle').textContent = tabTitles[tabName][0];
+        document.getElementById('pageSubtitle').textContent = tabTitles[tabName][1];
+        currentTab = tabName;
+        if (tabName === 'analytics') initCharts();
+        if (tabName === 'library') loadLibrary();
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('-translate-x-full');
+    }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = 'info') {
+        const colors = {
+            'success': 'border-green-400 text-green-400',
+            'warning': 'border-yellow-400 text-yellow-400',
+            'error': 'border-red-400 text-red-400',
+            'info': 'border-cyan-400 text-cyan-400'
+        };
+        const toast = document.createElement('div');
+        toast.className = `glass-panel rounded-xl p-4 border-l-4 ${colors[type]} notification-toast max-w-sm`;
+        toast.innerHTML = `<p class="text-sm text-white">${message}</p>`;
+        document.getElementById('toastContainer').appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+    }
+
+    // ===== API HEALTH CHECK =====
+    async function checkHealth() {
+        showToast('Checking API status...', 'info');
+        try {
+            const res = await fetch(`${API_BASE}/system/health`);
+            const data = await res.json();
+            updateApiStatus('openrouter', data.services.openrouter);
+            updateApiStatus('gemini', data.services.gemini);
+            updateApiStatus('edgetts', data.services.edgetts);
+            updateApiStatus('youtube', data.services.youtube);
+            showToast('API status updated!', 'success');
+        } catch (e) {
+            showToast('Server not running. Start with: npm start', 'error');
+        }
+    }
+
+    function updateApiStatus(api, status) {
+        const el = document.getElementById(`status-${api}`);
+        const textEl = document.getElementById(`status-text-${api}`);
+        if (!el) return;
+        el.className = 'w-2 h-2 rounded-full ';
+        if (status === 'connected' || status === 'available') {
+            el.classList.add('api-status-online');
+            if (textEl) { textEl.textContent = 'Active'; textEl.className = 'text-xs px-2 py-1 rounded-full bg-green-400/20 text-green-400'; }
+        } else if (status === 'no_key' || status === 'disconnected') {
+            el.classList.add('api-status-offline');
+            if (textEl) { textEl.textContent = 'Setup'; textEl.className = 'text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400'; }
+        } else {
+            el.classList.add('api-status-connecting');
+            if (textEl) { textEl.textContent = 'Checking...'; textEl.className = 'text-xs px-2 py-1 rounded-full bg-yellow-400/20 text-yellow-400'; }
+        }
+    }
+
+    // ===== SCRIPT GENERATION =====
+    async function generateScript() {
+        const topic = document.getElementById('scriptTopic').value;
+        if (!topic) { showToast('Enter a topic first!', 'warning'); return; }
+
+        const btn = document.getElementById('script-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+
+        const output = document.getElementById('scriptOutput');
+        output.innerHTML = '<div class="flex items-center gap-2 text-cyan-400"><i class="fas fa-spinner fa-spin"></i><span>Connecting to OpenRouter (FREE model)...</span></div>';
+
+        try {
+            const res = await fetch(`${API_BASE}/generate-script`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic,
+                    language: document.getElementById('scriptLang').value,
+                    length: document.getElementById('scriptLength').value,
+                    tone: document.querySelector('.tone-btn.active')?.dataset.tone || 'motivational',
+                    template: document.getElementById('scriptTemplate').value
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                generatedScript = data.script;
+                output.innerHTML = formatScript(data.script);
+                document.getElementById('wordCount').textContent = data.wordCount;
+                document.getElementById('wordCountBar').style.width = Math.min((data.wordCount / 1500) * 100, 100) + '%';
+                document.getElementById('duration').textContent = `${data.estimatedDuration}:00`;
+                document.getElementById('durationBar').style.width = Math.min((data.estimatedDuration / 15) * 100, 100) + '%';
+                showToast(`Script generated! ${data.wordCount} words`, 'success');
+                updateStats();
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            output.innerHTML = `<span class="text-red-400">Error: ${e.message}</span>`;
+            showToast('Script failed: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic mr-2"></i> GENERATE SCRIPT';
+        }
+    }
+
+    function formatScript(script) {
+        return script
+            .replace(/\[([0-9:]+)\s+(HOOK|INTRO|MAIN|CTA|B-ROLL|MUSIC CUE|EMOTION:[^\]]+)\]/gi, '<span class="text-cyan-400 font-bold">[$1 $2]</span>')
+            .replace(/\[METADATA\]/gi, '<span class="text-purple-400 font-bold">[METADATA]</span>')
+            .replace(/\[SCRIPT\]/gi, '<span class="text-green-400 font-bold">[SCRIPT]</span>');
+    }
+
+    function selectTone(btn) {
+        document.querySelectorAll('.tone-btn').forEach(b => {
+            b.classList.remove('bg-cyan-400/20', 'text-cyan-400', 'border-cyan-400/30', 'active');
+            b.classList.add('bg-white/5', 'text-gray-400', 'border-white/10');
+        });
+        btn.classList.remove('bg-white/5', 'text-gray-400', 'border-white/10');
+        btn.classList.add('bg-cyan-400/20', 'text-cyan-400', 'border-cyan-400/30', 'active');
+    }
+
+    function copyScript() {
+        if (!generatedScript) { showToast('Generate a script first!', 'warning'); return; }
+        navigator.clipboard.writeText(generatedScript).then(() => showToast('Copied!', 'success'));
+    }
+
+    function downloadScript() {
+        if (!generatedScript) { showToast('Generate a script first!', 'warning'); return; }
+        const blob = new Blob([generatedScript], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `script_${Date.now()}.txt`; a.click();
+        URL.revokeObjectURL(url);
+        showToast('Downloaded!', 'success');
+    }
+
+    function useInPipeline() {
+        if (!generatedScript) { showToast('Generate a script first!', 'warning'); return; }
+        document.getElementById('createTopic').value = document.getElementById('scriptTopic').value;
+        switchTab('create');
+        showToast('Script loaded! Now click GENERATE COMPLETE VIDEO', 'info');
+    }
+
+    // ===== IMAGE GENERATION =====
+    async function generateImages() {
+        const prompt = document.getElementById('imagePrompt').value;
+        if (!prompt) { showToast('Enter a prompt!', 'warning'); return; }
+
+        const btn = document.getElementById('image-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+
+        try {
+            const res = await fetch(`${API_BASE}/generate-images`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt,
+                    count: parseInt(document.getElementById('imageCount').value),
+                    type: document.getElementById('imageType').value
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                generatedImages = data.images;
+                const container = document.getElementById('imageResults');
+                container.innerHTML = data.images.map(img => `
+                    <div class="aspect-video bg-gray-800 rounded-xl overflow-hidden border border-white/5">
+                        <img src="${img.url}" class="w-full h-full object-cover" alt="Generated">
+                    </div>
+                `).join('');
+                showToast(`${data.count} images generated!`, 'success');
+                updateStats();
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            showToast('Image generation failed: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic mr-2"></i> GENERATE IMAGES';
+        }
+    }
+
+    // ===== VOICE GENERATION =====
+    async function generateVoice() {
+        const text = document.getElementById('voiceText').value;
+        if (!text) { showToast('Enter text to speak!', 'warning'); return; }
+
+        const btn = document.getElementById('voice-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+
+        try {
+            const res = await fetch(`${API_BASE}/generate-voice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text,
+                    voice: document.getElementById('voiceSelect').value,
+                    rate: document.getElementById('voiceRate').value,
+                    volume: document.getElementById('voiceVolume').value,
+                    pitch: document.getElementById('voicePitch').value
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                generatedVoice = data;
+                const output = document.getElementById('voiceOutput');
+                output.innerHTML = `
+                    <div class="w-full">
+                        <audio controls class="w-full mb-3">
+                            <source src="${data.audioUrl}" type="audio/mpeg">
+                        </audio>
+                        <div class="flex gap-2">
+                            <a href="${data.audioUrl}" download class="flex-1 py-2 rounded-lg bg-green-400/20 text-green-400 text-sm text-center hover:bg-green-400/30">
+                                <i class="fas fa-download mr-1"></i> Download MP3
+                            </a>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-400">
+                            <p>Voice: ${data.voice}</p>
+                            <p>Duration: ~${data.duration}s</p>
+                            <p>Characters: ${data.textLength}</p>
+                        </div>
+                    </div>
+                `;
+                showToast('Voice generated! Realistic Edge-TTS voice', 'success');
+                updateStats();
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            showToast('Voice failed: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-microphone mr-2"></i> GENERATE VOICE';
+        }
+    }
+
+    // ===== FULL PIPELINE =====
+    async function runFullPipeline() {
+        const topic = document.getElementById('createTopic').value;
+        if (!topic) { showToast('Enter a video topic!', 'warning'); return; }
+
+        const btn = document.getElementById('pipeline-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> STARTING PIPELINE...';
+
+        const progress = document.getElementById('pipelineProgress');
+        const results = document.getElementById('pipelineResults');
+        progress.classList.remove('hidden');
+        results.classList.add('hidden');
+
+        resetPipelineStep(1); resetPipelineStep(2); resetPipelineStep(3); resetPipelineStep(4);
+
+        try {
+            // Step 1: Generate Script
+            updatePipelineStep(1, 'active', 'Writing script with OpenRouter...');
+            const scriptRes = await fetch(`${API_BASE}/generate-script`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic,
+                    language: document.getElementById('createLang').value,
+                    length: document.getElementById('createLength').value,
+                    tone: 'motivational'
+                })
+            });
+            const scriptData = await scriptRes.json();
+            if (!scriptData.success) throw new Error(scriptData.error);
+            updatePipelineStep(1, 'complete', `Script: ${scriptData.wordCount} words`);
+
+            // Step 2: Generate Images
+            updatePipelineStep(2, 'active', 'Generating images with Gemini...');
+            const frameCount = parseInt(document.getElementById('createFrames').value);
+            const imageRes = await fetch(`${API_BASE}/generate-images`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: topic,
+                    count: Math.min(frameCount, 4),
+                    type: 'video-frames'
+                })
+            });
+            const imageData = await imageRes.json();
+            if (!imageData.success) throw new Error(imageData.error);
+            updatePipelineStep(2, 'complete', `${imageData.count} images generated`);
+
+            // Step 3: Generate Voice
+            updatePipelineStep(3, 'active', 'Generating voice with Edge-TTS...');
+            const cleanScript = scriptData.script.replace(/\[.*?\]/g, '').replace(/\d{1,2}:\d{2}[-–]\d{1,2}:\d{2}/g, '').trim();
+            const voiceRes = await fetch(`${API_BASE}/generate-voice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: cleanScript.substring(0, 3000),
+                    voice: document.getElementById('createVoice').value
+                })
+            });
+            const voiceData = await voiceRes.json();
+            if (!voiceData.success) throw new Error(voiceData.error);
+            updatePipelineStep(3, 'complete', `Voice: ${voiceData.duration}s`);
+
+            // Step 4: Assemble Video
+            updatePipelineStep(4, 'active', 'Assembling video with ffmpeg...');
+            const videoRes = await fetch(`${API_BASE}/assemble-video`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    script: scriptData.script,
+                    topic,
+                    imageCount: frameCount,
+                    voice: document.getElementById('createVoice').value,
+                    style: document.getElementById('createStyle').value
+                })
+            });
+            const videoData = await videoRes.json();
+            if (!videoData.success) throw new Error(videoData.error);
+            updatePipelineStep(4, 'complete', `Video: ${videoData.sizeMB}MB`);
+
+            // Show results
+            progress.classList.add('hidden');
+            results.classList.remove('hidden');
+
+            const output = document.getElementById('pipeline-output');
+            output.innerHTML = `
+                <div class="p-4 rounded-xl bg-gray-800/50 border border-green-400/20">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fas fa-check-circle text-green-400 text-xl"></i>
+                        <span class="text-white font-bold">Video Complete!</span>
+                    </div>
+                    <video controls class="w-full rounded-xl mb-3">
+                        <source src="${videoData.videoUrl}" type="video/mp4">
+                    </video>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-gray-400">
+                        <div>Duration: ${videoData.duration}s</div>
+                        <div>Frames: ${videoData.frameCount}</div>
+                        <div>Resolution: ${videoData.resolution}</div>
+                        <div>Size: ${videoData.sizeMB}MB</div>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <a href="${videoData.videoUrl}" download class="flex-1 py-2 rounded-lg bg-green-400/20 text-green-400 text-sm text-center hover:bg-green-400/30">
+                            <i class="fas fa-download mr-1"></i> Download
+                        </a>
+                        <button onclick="switchTab('library')" class="flex-1 py-2 rounded-lg bg-purple-400/20 text-purple-400 text-sm hover:bg-purple-400/30">
+                            <i class="fas fa-folder mr-1"></i> Library
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Update preview
+            document.getElementById('videoPreview').classList.add('hidden');
+            document.getElementById('videoPlayerContainer').classList.remove('hidden');
+            document.getElementById('resultVideo').src = videoData.videoUrl;
+            document.getElementById('downloadVideoBtn').href = videoData.videoUrl;
+
+            showToast('Video created successfully!', 'success');
+            updateStats();
+
+        } catch (e) {
+            console.error(e);
+            showToast('Pipeline failed: ' + e.message, 'error');
+            document.getElementById('p-step-4').classList.add('step-error');
+            document.getElementById('p-status-4').textContent = 'Failed';
+            document.getElementById('p-status-4').className = 'text-xs text-red-400';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic mr-2"></i> GENERATE COMPLETE VIDEO';
+        }
+    }
+
+    function resetPipelineStep(step) {
+        const el = document.getElementById(`p-step-${step}`);
+        el.className = 'flex items-center gap-4 p-3 rounded-xl border border-white/10';
+        document.getElementById(`p-icon-${step}`).innerHTML = `<i class="fas fa-${['file-alt','image','microphone','video'][step-1]} text-gray-500"></i>`;
+        document.getElementById(`p-icon-${step}`).className = 'w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center';
+        document.getElementById(`p-status-${step}`).textContent = 'Waiting...';
+        document.getElementById(`p-status-${step}`).className = 'text-xs text-gray-500';
+        document.getElementById(`p-bar-${step}`).style.width = '0%';
+    }
+
+    function updatePipelineStep(step, status, message) {
+        const el = document.getElementById(`p-step-${step}`);
+        const icon = document.getElementById(`p-icon-${step}`);
+        const statusText = document.getElementById(`p-status-${step}`);
+        const bar = document.getElementById(`p-bar-${step}`);
+        const colors = ['cyan', 'purple', 'green', 'pink'];
+        const color = colors[step - 1];
+
+        if (status === 'active') {
+            el.classList.add('step-active');
+            icon.innerHTML = '<i class="fas fa-spinner fa-spin text-' + color + '-400"></i>';
+            icon.className = `w-10 h-10 rounded-full bg-${color}-400/20 flex items-center justify-center`;
+            statusText.textContent = message;
+            statusText.className = `text-xs text-${color}-400`;
+            bar.style.width = '60%';
+        } else if (status === 'complete') {
+            el.classList.remove('step-active');
+            el.classList.add('step-complete');
+            icon.innerHTML = '<i class="fas fa-check text-green-400"></i>';
+            icon.className = 'w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center';
+            statusText.textContent = message;
+            statusText.className = 'text-xs text-green-400';
+            bar.style.width = '100%';
+        }
+    }
+
+    // ===== AI VIDEO GENERATION =====
+    async function generateAIVideo() {
+        const prompt = document.getElementById('aiVideoPrompt').value;
+        if (!prompt) { showToast('Enter a video prompt!', 'warning'); return; }
+
+        const btn = document.getElementById('ai-video-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> GENERATING...';
+
+        try {
+            const res = await fetch(`${API_BASE}/generate-ai-video`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt,
+                    duration: parseInt(document.getElementById('aiVideoDuration').value),
+                    style: document.getElementById('aiVideoStyle').value
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const output = document.getElementById('aiVideoOutput');
+                output.innerHTML = `
+                    <div class="w-full">
+                        <video controls class="w-full rounded-xl mb-3">
+                            <source src="${data.videoUrl}" type="video/mp4">
+                        </video>
+                        <div class="flex gap-2">
+                            <a href="${data.videoUrl}" download class="flex-1 py-2 rounded-lg bg-yellow-400/20 text-yellow-400 text-sm text-center hover:bg-yellow-400/30">
+                                <i class="fas fa-download mr-1"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                `;
+                showToast('AI video generated!', 'success');
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e) {
+            showToast('AI video failed: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-robot mr-2"></i> GENERATE AI VIDEO';
+        }
+    }
+
+    // ===== STATS & LIBRARY =====
+    async function updateStats() {
+        try {
+            const res = await fetch(`${API_BASE}/system/status`);
+            const data = await res.json();
+            document.getElementById('dash-scripts').textContent = data.databases.scripts;
+            document.getElementById('dash-images').textContent = data.databases.images;
+            document.getElementById('dash-videos').textContent = data.databases.videos;
+            document.getElementById('dash-voices').textContent = data.databases.videos; // Approximate
+            document.getElementById('stat-scripts').textContent = data.databases.scripts;
+            document.getElementById('stat-videos').textContent = data.databases.videos;
+            document.getElementById('stat-images').textContent = data.databases.images;
+            document.getElementById('api-openrouter').textContent = data.apiCalls.openrouter;
+            document.getElementById('api-gemini').textContent = data.apiCalls.gemini;
+            document.getElementById('api-edgetts').textContent = data.apiCalls.gemini; // Approx
+        } catch (e) {}
+    }
+
+    async function loadLibrary() {
+        try {
+            const [scriptsRes, videosRes, imagesRes] = await Promise.all([
+                fetch(`${API_BASE}/scripts`),
+                fetch(`${API_BASE}/videos`),
+                fetch(`${API_BASE}/system/status`)
+            ]);
+            const scripts = await scriptsRes.json();
+            const videos = await videosRes.json();
+
+            document.getElementById('libraryScripts').innerHTML = scripts.scripts?.length ? scripts.scripts.slice(0, 10).map(s => `
+                <div class="p-3 rounded-xl bg-gray-800/50 border border-white/5">
+                    <p class="text-sm text-white truncate">${s.topic}</p>
+                    <p class="text-xs text-gray-400">${s.wordCount} words · ${s.language}</p>
+                </div>
+            `).join('') : '<p class="text-xs text-gray-500 text-center py-4">No scripts yet</p>';
+
+            document.getElementById('libraryVideos').innerHTML = videos.videos?.length ? videos.videos.slice(0, 10).map(v => `
+                <div class="p-3 rounded-xl bg-gray-800/50 border border-white/5">
+                    <p class="text-sm text-white truncate">${v.topic}</p>
+                    <p class="text-xs text-gray-400">${v.duration}s · ${v.sizeMB}MB</p>
+                </div>
+            `).join('') : '<p class="text-xs text-gray-500 text-center py-4">No videos yet</p>';
+        } catch (e) {}
+    }
+
+    // ===== CHARTS =====
+    function initCharts() {
+        const ctx = document.getElementById('contentChart');
+        if (!ctx || ctx.chart) return;
+        ctx.chart = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Scripts',
+                    data: [2, 5, 3, 8, 4, 6, 7],
+                    borderColor: '#00f3ff',
+                    backgroundColor: 'rgba(0,243,255,0.1)',
+                    fill: true
+                }, {
+                    label: 'Videos',
+                    data: [1, 2, 1, 3, 2, 2, 3],
+                    borderColor: '#bc13fe',
+                    backgroundColor: 'rgba(188,19,254,0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#e0e0e0' } } },
+                scales: {
+                    y: { ticks: { color: '#666' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#666' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+        checkHealth();
+        updateStats();
+        setInterval(updateStats, 30000);
+    });
+    </script>
+</body>
+</html>
