@@ -2309,53 +2309,5 @@
         });
     });
     </script>
-<script>
-const API = 'https://ai-youtube-m6t6.onrender.com';
-
-// Check connection on load
-fetch(API + '/api/status')
-  .then(r => r.json())
-  .then(d => {
-    if (d.openrouter) {
-      document.getElementById('status-openrouter').className = 'w-2 h-2 rounded-full api-status-online';
-      document.getElementById('api-calls').textContent = '1/hr';
-    }
-  })
-  .catch(() => console.log('Backend waking up...'));
-
-// Make buttons work
-function generateVideoPipeline() {
-  const topic = document.getElementById('videoTopic')?.value || prompt('🎬 Enter video topic:');
-  if (!topic) return;
-  
-  alert('🎬 Generating: ' + topic + '\n\n✅ Connected to OpenRouter AI\n⏳ Processing...');
-  
-  fetch(API + '/api/status')
-    .then(r => r.json())
-    .then(d => alert('✅ Pipeline Active!\n\nAgents: ' + d.agents + '\nOpenRouter: Connected'));
-}
-
-function generateScript() {
-  const topic = document.getElementById('scriptTopic')?.value || prompt('📝 Enter topic:');
-  if (!topic) return;
-  alert('📝 Generating script for: ' + topic + '\n\nAI is writing...');
-}
-
-function quickGenerate() { generateScript(); }
-function activateAgent(t) { alert('✅ Agent Activated!'); }
-function showToast(m) { alert(m); }
-
-// Update API status dots
-setInterval(() => {
-  fetch(API + '/api/status')
-    .then(r => r.json())
-    .then(d => {
-      if (d.openrouter) document.getElementById('status-openrouter').className = 'w-2 h-2 rounded-full api-status-online';
-    })
-    .catch(() => {});
-}, 30000);
-
-console.log('🚀 NeuroTube Connected to Backend');
-</script>
 </body>
 </html>
