@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: free-aistudio-yt-kimi
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: pip3 install -r requirements.txt && yarn install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+    nativePackages:
+      - ffmpeg
+      - python3
+      - python3-pip
