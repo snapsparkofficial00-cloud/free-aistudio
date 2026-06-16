@@ -27,8 +27,23 @@ def _generate_image_gemini(prompt: str, out_path: str, model: str = 'gemini-3-pr
     genai.configure(api_key=api_key)
     model_obj = genai.GenerativeModel(model)
 
-    # User-specified usage: response = model.generate_content(prompt)
-    resp = model_obj.generate_content(prompt)
+    max_attempts = 4
+    backoff = 1.0
+    resp = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = model_obj.generate_content(prompt)
+            break
+        except Exception as exc:
+            message = str(exc).lower()
+            if attempt == max_attempts:
+                raise
+            if 'rate limit' in message or '429' in message or 'timeout' in message or 'connection' in message:
+                sleep_seconds = backoff * (2 ** (attempt - 1))
+                print(f'Gemini API retry {attempt}/{max_attempts} after {sleep_seconds:.1f}s due to: {exc}')
+                time.sleep(sleep_seconds)
+                continue
+            raise
 
     # Try to locate image bytes in the response. The client may return a
     # structured object; handle likely shapes and fallback to saving the

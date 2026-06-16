@@ -15,42 +15,44 @@ def run_pipeline(topic: str, skip_video=False, skip_upload=True, mode: str = 'sh
     with open(os.path.join(out, 'script.txt'), 'w', encoding='utf8') as f:
         f.write(script['script'])
 
-    print('Generating images...')
-    # Map script segments to prompts exactly so each image prompt matches the
-    # voiceover segment. Split script by lines and use non-empty lines as
-    # segments.
-    segments = [s.strip() for s in script['script'].splitlines() if s.strip()]
+    print('Generating voice...')
+    audio_path = os.path.join(out, 'voice.mp3')
+    text_to_speech(script['script'], audio_path)
 
-    # Determine desired image count per mode
+    from pydub import AudioSegment
+    audio = AudioSegment.from_file(audio_path)
+    audio_duration = audio.duration_seconds
     if mode == 'shorts':
-        desired_count = 25  # within 20-30
+        image_count = min(max(round(audio_duration / 1.0), 20), 30)
         resolution = '1080x1920'
     else:
-        desired_count = 35  # within 30-45
+        image_count = min(max(round(audio_duration / 4.0), 30), 45)
         resolution = '1920x1080'
 
-    # Build prompts: each prompt should match a script segment exactly.
+    print(f'Adaptive image count for mode={mode}: {image_count} images (audio {audio_duration:.1f}s)')
+    print('Generating images...')
+    segments = [s.strip() for s in script['script'].splitlines() if s.strip()]
     prompts = []
     if segments:
-        # Repeat segments proportionally to reach desired_count
         import math
-        times = math.ceil(desired_count / len(segments))
-        for _ in range(times):
+        repeat = math.ceil(image_count / len(segments))
+        for _ in range(repeat):
             for seg in segments:
-                if len(prompts) < desired_count:
+                if len(prompts) < image_count:
                     prompts.append(seg)
                 else:
                     break
     else:
-        # Fallback if no segments found
-        prompts = [f"{topic} - scene {i+1} - cinematic, high detail, photorealistic" for i in range(desired_count)]
+        prompts = [f"{topic} - scene {i+1} - cinematic, high detail, photorealistic" for i in range(image_count)]
 
     images_dir = os.path.join(out, 'images')
-    image_paths = generate_images(prompts, images_dir, width=int(resolution.split('x')[0]), height=int(resolution.split('x')[1]), use_gemini=True)
-
-    print('Generating voice...')
-    audio_path = os.path.join(out, 'voice.mp3')
-    text_to_speech(script['script'], audio_path)
+    image_paths = generate_images(
+        prompts,
+        images_dir,
+        width=int(resolution.split('x')[0]),
+        height=int(resolution.split('x')[1]),
+        use_gemini=True,
+    )
 
     if not skip_video:
         print('Assembling video with ffmpeg...')

@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: neurotube-pipeline
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m neurotube.pipeline
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRETS
+        sync: false
