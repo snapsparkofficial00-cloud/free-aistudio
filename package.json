@@ -13,6 +13,7 @@
     "setup": "npm install && cp .env.example .env && echo 'Edit .env with your API keys'"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "axios": "^1.7.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
