@@ -1,0 +1,10 @@
+python-dotenv
+Pillow
+pydub
+pyttsx3
+requests
+gTTS
+edge-tts
+google-api-python-client
+google-auth
+google-auth-oauthlib
