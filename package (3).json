@@ -1,0 +1,35 @@
+{
+  "name": "neurotube-ai-pro",
+  "version": "4.1.0",
+  "description": "NeuroTube AI PRO v4.1 - Full YouTube Automation Platform with ZingRoll",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "youtube",
+    "automation",
+    "ai",
+    "shorts",
+    "tiktok",
+    "reels",
+    "video-generator",
+    "openrouter",
+    "gemini",
+    "edge-tts"
+  ],
+  "author": "NeuroTube AI",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
